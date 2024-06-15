@@ -3,6 +3,23 @@
 #include <string.h>
 #include <stdbool.h>
 
+// 定义操作命令解析结果
+typedef enum{
+    META_COMMAND_SUCCESS,
+    META_COMMAND_UNRECOGNIZED_COMMAND
+}MetaCommandResult;
+
+typedef enum{PREPARE_SUCCESS,PREPARE_UNRECOGNIZED_SUCCESS} PrepareResult;
+
+// 定义SQL语句类型
+typedef enum{STATEMENT_INSERT,STATEMENT_SELECT} StatementType;
+
+// 定义SQL语句
+typedef struct{
+    StatementType type;
+}Statement;
+
+
 typedef struct{
     char* buffer;
     size_t buffer_length;
@@ -21,6 +38,37 @@ InputBuffer* new_input_buffer(){
 void print_prompt(){
     printf("db > ");
 }
+
+MetaCommandResult do_meta_command(InputBuffer *input_buffer){
+    if(strcmp(input_buffer->buffer,".exit") == 0){
+        exit(EXIT_SUCCESS);
+    }else{
+        return META_COMMAND_UNRECOGNIZED_COMMAND;
+    }
+}
+PrepareResult prepare_statement(InputBuffer* input_buffer,Statement *statement){
+    if (strncmp(input_buffer->buffer,"insert",6)==0){
+        statement->type=STATEMENT_INSERT;
+        return PREPARE_SUCCESS;
+    }
+    if (strncmp(input_buffer->buffer,"select",6)==0){
+        statement->type=STATEMENT_SELECT;
+        return PREPARE_SUCCESS;
+    }
+    return PREPARE_UNRECOGNIZED_SUCCESS;   
+}
+
+void execute_statement(Statement * statement){
+    switch(statement->type){
+        case (STATEMENT_INSERT):
+            printf("This is where we would do an insert.\n");
+            break;
+        case (STATEMENT_SELECT):
+            printf("This is where we would do an select.\n");
+            break;
+    }
+}
+
 
 void read_input(InputBuffer *input_buffer){
     ssize_t bytes_read = getline(&(input_buffer->buffer),&(input_buffer->buffer_length),stdin);
@@ -44,12 +92,26 @@ int main(int argc, char const *argv[]){
         print_prompt();
         read_input(input_buffer);
 
-        if(strcmp(input_buffer->buffer,".exit")==0){
-            close_input_buffer(input_buffer);
-            exit(EXIT_FAILURE);
-        }else{
-            printf("Unrecognized command '%s'.\n",input_buffer->buffer);
+        if (input_buffer->buffer[0] == '.'){
+            switch(do_meta_command(input_buffer)){
+                case (META_COMMAND_SUCCESS):
+                    continue;
+                case (META_COMMAND_UNRECOGNIZED_COMMAND):
+                    printf("Unrecognized command '%s'\n",input_buffer->buffer);
+                    continue;
+            }
         }
+        
+        Statement statement;
+        switch(prepare_statement(input_buffer,&statement)){
+            case (PREPARE_SUCCESS):
+                break;
+            case (PREPARE_UNRECOGNIZED_SUCCESS):
+                printf("Unrecognized keyword at start of '%s'.\n",input_buffer->buffer);
+                continue;
+        }
+        execute_statement(&statement);
+        printf("Executed.\n");
     }    
     return 0;
 }
